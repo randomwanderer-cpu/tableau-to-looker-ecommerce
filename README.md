@@ -1,6 +1,6 @@
 # Tableau → Looker migration: ecommerce semantic layer
 
-A small, honest portfolio project demonstrating a semantic layer built in
+A small & honest portfolio project demonstrating a semantic layer built in
 LookML, and a worked example of translating Tableau logic into it.
 
 > **Syntax- and reference-checked offline; not run against a live Looker
