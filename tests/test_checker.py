@@ -20,6 +20,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CHECKER = REPO_ROOT / "tools" / "check_lookml.py"
 BROKEN_DIR = REPO_ROOT / "tests" / "broken"
 
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+import check_lookml  # noqa: E402
+
 
 def run_checker(root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -74,7 +77,35 @@ def test_broken_fixture_fails() -> None:
         print("PASS: broken fixture fails, and for all the right reasons")
 
 
+def test_duration_dimension_group_field_names() -> None:
+    """Looker's own reference example (param-field-dimension-group) names a
+    duration group `since_event` with intervals [hour, day] and says it
+    generates fields `hours_since_event` / `days_since_event` -- the
+    pluralized interval prefixed onto the group name, not suffixed. This
+    proves field_names_for_view() matches that, not the (wrong) suffix form
+    this project's checker originally used before FIX 2a."""
+    view = {
+        "name": "some_view",
+        "dimension_groups": [
+            {
+                "name": "since_event",
+                "type": "duration",
+                "intervals": ["hour", "day"],
+                "sql_start": "${event_raw}",
+                "sql_end": "CURRENT_TIMESTAMP()",
+            }
+        ],
+    }
+    names = check_lookml.field_names_for_view(view)
+    assert "hours_since_event" in names, f"expected hours_since_event, got {names}"
+    assert "days_since_event" in names, f"expected days_since_event, got {names}"
+    assert "since_event_hours" not in names, "old suffix-style name should not appear"
+    assert "since_event_days" not in names, "old suffix-style name should not appear"
+    print("PASS: duration dimension_group field names match Looker's own example")
+
+
 if __name__ == "__main__":
     test_real_project_passes()
     test_broken_fixture_fails()
+    test_duration_dimension_group_field_names()
     print("\nAll checker tests passed.")

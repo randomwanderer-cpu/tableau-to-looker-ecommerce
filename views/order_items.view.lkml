@@ -53,6 +53,22 @@ view: order_items {
     sql: ${TABLE}.created_at ;;
   }
 
+  # Tableau calc field `Days Since Order`: DATEDIFF('day', [Created At], TODAY()).
+  # Looker's duration dimension_group is the direct equivalent; per Looker's
+  # own reference example (param-field-dimension-group), naming this group
+  # "since_created" with intervals: [day] generates a field literally named
+  # days_since_created (interval name prefixed onto the group name, not
+  # suffixed) -- confirmed against Looker's published docs, not guessed.
+  # TODAY() becomes the dialect-specific CURRENT_TIMESTAMP() here (Looker's
+  # own example dialect is MySQL; this project targets BigQuery, where
+  # CURRENT_TIMESTAMP() is equally valid).
+  dimension_group: since_created {
+    type: duration
+    intervals: [day]
+    sql_start: ${created_raw} ;;
+    sql_end: CURRENT_TIMESTAMP() ;;
+  }
+
   # --- Shared measures: defined once here, reused across every explore and dashboard ---
 
   measure: item_count {

@@ -61,8 +61,12 @@ def field_names_for_view(view: dict) -> set[str]:
         if not base:
             continue
         if dg.get("type") == "duration":
+            # Per Looker's own reference example (param-field-dimension-group):
+            # a group named "since_event" with intervals: [day, hour] generates
+            # fields named days_since_event, hours_since_event -- the pluralized
+            # interval is PREFIXED onto the group name, not suffixed.
             for interval in dg.get("intervals", []) or []:
-                names.add(f"{base}_{interval}")
+                names.add(f"{interval}s_{base}")
         else:
             timeframes = dg.get("timeframes") or TIMEFRAMES_DEFAULT
             for tf in timeframes:
