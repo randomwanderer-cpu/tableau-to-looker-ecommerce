@@ -13,13 +13,13 @@ explains why this direction of migration is harder than the reverse.
 | Calc field `Average Order Value` | `measure: average_order_value` | [order_items.view.lkml](../views/order_items.view.lkml) | Yes |
 | Calc field `Is Returned` | `dimension: is_returned` | [order_items.view.lkml](../views/order_items.view.lkml) | Yes |
 | Calc field `Return Rate` | `measure: return_rate` | [order_items.view.lkml](../views/order_items.view.lkml) | Yes |
-| Calc field `Net Revenue` | `measure: total_net_revenue` | [order_items_refinement.view.lkml](../views/order_items_refinement.view.lkml) | Yes, but requires an explicit join to `products` — see below |
+| Calc field `Net Revenue` | `measure: total_net_revenue` | [order_items_refinement.view.lkml](../views/order_items_refinement.view.lkml) | Yes, but only inside an explore that joins `products` — remove that join and the measure breaks |
 | Calc field `Selected Revenue` | `measure: selected_revenue` (Liquid branches on the parameter) | [order_items_refinement.view.lkml](../views/order_items_refinement.view.lkml) | Mostly — LookML Liquid conditionals on a parameter are more verbose than a Tableau `IF` calc |
 | Calc field `Days Since Order` | *(not built)* | — | ⚠ Doesn't map cleanly, see below |
 | FIXED LOD: lifetime revenue | `customer_lifetime_value` derived table, joined 1:1 to `users` | [customer_lifetime_value.view.lkml](../views/customer_lifetime_value.view.lkml) | Yes, but the mechanism is different (pre-aggregated join, not a query-time scoped aggregation) |
 | FIXED LOD: lifetime order count | Same derived table, `lifetime_order_count` dimension | [customer_lifetime_value.view.lkml](../views/customer_lifetime_value.view.lkml) | Yes, same caveat |
 | Parameter `Revenue Metric` | `parameter: revenue_metric` | [order_items_refinement.view.lkml](../views/order_items_refinement.view.lkml) | Yes |
-| Set `Repeat Customers` | `dimension` on `customer_lifetime_value.lifetime_order_count >= 2`, used as a filter | *(not built — see assumptions)* | ⚠ Partial — Looker has no first-class "set" object; the closest equivalent is a derived dimension or an `access_grant`-style filter |
+| Set `Repeat Customers` | `dimension` on `customer_lifetime_value.lifetime_order_count >= 2`, used as a filter | *(not built — see below)* | ⚠ Partial — Looker has no first-class "set" object; the closest equivalent is a derived dimension or an `access_grant`-style filter |
 | Table calc: MoM revenue change | *(not built)* | — | ⚠ Doesn't map cleanly, see below |
 | Row-level security (user filter on state) | `access_filter` on the `order_items` explore, keyed to a `state` user attribute | [ecommerce.model.lkml](../models/ecommerce.model.lkml) | Yes, but enforcement model is different — see below |
 | Extract refresh schedule | `datagroup` + `persist_with` (cache TTL trigger) | [ecommerce.model.lkml](../models/ecommerce.model.lkml) | Partial — a Looker datagroup controls *cache* invalidation against a live connection; it is not a scheduled extract rebuild |
