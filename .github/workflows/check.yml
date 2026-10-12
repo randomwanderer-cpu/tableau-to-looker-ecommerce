@@ -1,0 +1,24 @@
+name: Check LookML
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lkml
+        run: pip install lkml
+
+      - name: Run LookML structural checker
+        run: python tools/check_lookml.py
+
+      - name: Run checker self-tests (proves it catches errors)
+        run: python tests/test_checker.py
