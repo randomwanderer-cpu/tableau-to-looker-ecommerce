@@ -15,31 +15,32 @@ explains why this direction of migration is harder than the reverse.
 | Calc field `Return Rate` | `measure: return_rate` | [order_items.view.lkml](../views/order_items.view.lkml) | Yes |
 | Calc field `Net Revenue` | `measure: total_net_revenue` | [order_items_refinement.view.lkml](../views/order_items_refinement.view.lkml) | Yes, but only inside an explore that joins `products` — remove that join and the measure breaks |
 | Calc field `Selected Revenue` | `measure: selected_revenue` (Liquid branches on the parameter) | [order_items_refinement.view.lkml](../views/order_items_refinement.view.lkml) | Mostly — LookML Liquid conditionals on a parameter are more verbose than a Tableau `IF` calc |
-| Calc field `Days Since Order` | *(not built)* | — | ⚠ Doesn't map cleanly, see below |
-| FIXED LOD: lifetime revenue | `customer_lifetime_value` derived table, joined 1:1 to `users` | [customer_lifetime_value.view.lkml](../views/customer_lifetime_value.view.lkml) | Yes, but the mechanism is different (pre-aggregated join, not a query-time scoped aggregation) |
+| Calc field `Days Since Order` | `dimension_group: since_created` (type: duration), generated field `order_items.days_since_created` | [order_items.view.lkml](../views/order_items.view.lkml) | Yes, but `TODAY()` becomes a dialect-specific `CURRENT_TIMESTAMP()`/`CURRENT_DATE()` in `sql_end` |
+| FIXED LOD: lifetime revenue | `customer_lifetime_value` derived table, joined to `order_items` on `user_id` (`relationship: many_to_one`, one row per customer) | [customer_lifetime_value.view.lkml](../views/customer_lifetime_value.view.lkml) | Yes, but the mechanism is different (pre-aggregated join, not a query-time scoped aggregation) |
 | FIXED LOD: lifetime order count | Same derived table, `lifetime_order_count` dimension | [customer_lifetime_value.view.lkml](../views/customer_lifetime_value.view.lkml) | Yes, same caveat |
 | Parameter `Revenue Metric` | `parameter: revenue_metric` | [order_items_refinement.view.lkml](../views/order_items_refinement.view.lkml) | Yes |
-| Set `Repeat Customers` | `dimension` on `customer_lifetime_value.lifetime_order_count >= 2`, used as a filter | *(not built — see below)* | ⚠ Partial — Looker has no first-class "set" object; the closest equivalent is a derived dimension or an `access_grant`-style filter |
-| Table calc: MoM revenue change | *(not built)* | — | ⚠ Doesn't map cleanly, see below |
+| Set `Repeat Customers` | `dimension: is_repeat_customer` (`lifetime_order_count >= 2`) | [customer_lifetime_value.view.lkml](../views/customer_lifetime_value.view.lkml) | Mostly — captures the membership *rule*, but see below |
+| Table calc: MoM revenue change | `dynamic_fields` → `table_calculation` on the new "Month-over-Month Revenue Change" table element | [ecommerce_overview.dashboard.lookml](../dashboards/ecommerce_overview.dashboard.lookml) | Partial — see below |
 | Row-level security (user filter on state) | `access_filter` on the `order_items` explore, keyed to a `state` user attribute | [ecommerce.model.lkml](../models/ecommerce.model.lkml) | Yes, but enforcement model is different — see below |
 | Extract refresh schedule | `datagroup` + `persist_with` (cache TTL trigger) | [ecommerce.model.lkml](../models/ecommerce.model.lkml) | Partial — a Looker datagroup controls *cache* invalidation against a live connection; it is not a scheduled extract rebuild |
 
 ## What doesn't map cleanly, and why
 
-- **`Days Since Order`** — a row-level calc against `TODAY()`. LookML has no
-  direct `TODAY()` equivalent inside a `sql:` expression; it would need a
-  dialect-specific function (e.g. `CURRENT_DATE()` in BigQuery SQL) baked
-  into the dimension's `sql:` parameter. Left out here rather than guessed
-  at, per this repo's rule against unverified LookML.
 - **Table calculation (MoM revenue change)** — Tableau table calcs operate
-  on the rendered table/viz itself (partition + addressing). Looker has no
-  direct equivalent; the nearest options are (a) a custom SQL window
-  function pushed into a derived table, which changes the query's grain and
-  has to be designed per-report, or (b) a Looker "table calculation" field
-  defined *in the Explore UI*, which lives in the query, not in LookML, and
-  so isn't portable/version-controlled the way everything else in this repo
-  is. Neither is a drop-in replacement — this is one of the real migration
-  costs, not a documentation gap.
+  on the rendered table/viz itself (partition + addressing). Looker's
+  closer equivalent than the Explore-UI-only table calculation is a
+  dashboard element's `dynamic_fields` → `table_calculation` entry (see the
+  "Month-over-Month Revenue Change" element in
+  [ecommerce_overview.dashboard.lookml](../dashboards/ecommerce_overview.dashboard.lookml)),
+  which — unlike a calc built ad hoc in the Explore UI — *is* saved in
+  LookML and so *is* version-controlled, same as everything else in this
+  repo. **My belief, not verified against Looker's docs:** a
+  `table_calculation` like this is scoped to the one dashboard element it's
+  defined on, not reusable the way a `measure:` in a view is — so a Tableau
+  table calc used across several sheets would need to be re-declared in
+  every Looker dashboard element that needs it, rather than defined once
+  and referenced everywhere. If true, that re-declaration cost — not a lack
+  of version control — is the real migration cost here.
 - **Sets** — Tableau sets are reusable, UI-managed membership lists.
   LookML has no first-class set object; the usual substitute is a SQL
   `CASE`/boolean dimension (as noted in the table above), which loses the
