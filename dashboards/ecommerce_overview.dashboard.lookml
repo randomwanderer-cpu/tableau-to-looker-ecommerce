@@ -111,3 +111,38 @@
     col: 12
     width: 12
     height: 8
+
+  # Tableau table calc `Month-over-Month Revenue Change`:
+  # (ZN(SUM([Revenue])) - LOOKUP(ZN(SUM([Revenue])), -1)) / ABS(LOOKUP(ZN(SUM([Revenue])), -1))
+  # dynamic_fields/table_calculation keys below (table_calculation, label,
+  # expression, value_format_name, _kind_hint, _type_hint, is_disabled) are
+  # taken from Looker's own reference example for this parameter
+  # (param-lookml-dashboard-table-chart, which shows a running_total
+  # table_calculation in exactly this form). offset(${field}, -1) reading as
+  # "the previous row" (not the next) is likewise confirmed by Looker's own
+  # percent-change/percent-of-previous guide. What is NOT independently
+  # confirmed -- flagged in docs/assumptions.md -- is this exact calculation
+  # (a ratio built from offset(), rather than Looker's own running_total
+  # example) actually rendering correctly in a live dashboard.
+  - name: Month-over-Month Revenue Change
+    title: Month-over-Month Revenue Change
+    type: looker_grid
+    explore: order_items
+    model: ecommerce
+    fields: [order_items.created_month, order_items.total_revenue]
+    sorts: [order_items.created_month]
+    listen:
+      order_date: order_items.created_date
+      state: users.state
+    dynamic_fields:
+      - table_calculation: mom_revenue_change
+        label: "MoM Revenue Change"
+        expression: "${order_items.total_revenue} / offset(${order_items.total_revenue}, -1) - 1"
+        value_format_name: percent_1
+        _kind_hint: measure
+        _type_hint: number
+        is_disabled: false
+    row: 12
+    col: 0
+    width: 24
+    height: 8
